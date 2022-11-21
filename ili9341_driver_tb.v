@@ -12,6 +12,10 @@ wire tft_cs_o;
 wire tft_clk_o;
 wire tft_din_o;
 
+wire [9:0] debug_ram_ptr;
+wire [2:0] debug_ram_out_ptr;
+wire [7:0] debug_ram_out;
+
 ili9341_driver_top UUT ( 
     .sysclk(sysclk_i), 
     .btn(btn_i), 
@@ -20,13 +24,16 @@ ili9341_driver_top UUT (
     .tft_dc(tft_dc_o),
     .tft_cs(tft_cs_o), 
     .tft_clk(tft_clk_o), 
-    .tft_din(tft_din_o)
+    .tft_din(tft_din_o),
+    .debug_ram_ptr(debug_ram_ptr),
+    .debug_ram_out_ptr(debug_ram_out_ptr),
+    .debug_ram_out(debug_ram_out)
 );
 
 initial begin
 #100;
 
-repeat (100)
+repeat (10000000)
 begin
     #10
     sysclk_i = ~sysclk_i;
