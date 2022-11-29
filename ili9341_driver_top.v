@@ -11,7 +11,7 @@ module clk_half_divider ( clk_in, clk_out );
         clk_out_reg <= clk_out_reg + 1;
 endmodule
 
-module ili9341_driver_top( sysclk, btn, tft_bl, tft_rst, tft_dc, tft_cs, tft_clk, tft_din); //, debug_ram_ptr, debug_ram_out_ptr, debug_ram_out );
+module ili9341_driver_top( sysclk, btn, tft_bl, tft_rst, tft_dc, tft_cs, tft_clk, tft_din); //, debug_ram_addr, debug_ram_out_addr, debug_ram_out );
     input sysclk;
     input [1:0] btn;
     output tft_bl;
@@ -21,8 +21,8 @@ module ili9341_driver_top( sysclk, btn, tft_bl, tft_rst, tft_dc, tft_cs, tft_clk
     output tft_clk;
     output tft_din;
     
-    //output [9:0] debug_ram_ptr;
-    //output [3:0] debug_ram_out_ptr;
+    //output [9:0] debug_ram_addr;
+    //output [3:0] debug_ram_out_addr;
     //output [7:0] debug_ram_out;
 
     // Half the clock rate
@@ -36,21 +36,21 @@ module ili9341_driver_top( sysclk, btn, tft_bl, tft_rst, tft_dc, tft_cs, tft_clk
     reg int_dc = 1'b0;
     reg int_din = 1'b0;
     reg int_cs = 1'b1;
-    reg align_done = 1'b0;
-
-    reg [15:0] data_out_reg = 16'b0;
-    reg [3:0] ptr = 4'b0;
+    reg system_ready = 1'b0;
     
-    // Initial state 
-    //reg [9:0] ram_ptr = 10'b0;
-    reg [3:0] ram_ptr = 4'b0;
-    reg [2:0] ram_out_ptr = 3'b111;
+    // State machines
+    reg [9:0] ram_addr = 10'b0;
+    reg [2:0] ram_out_addr = 3'b111;
     wire [7:0] ram_out;
-    localparam INIT = 2'b00, NORM = 2'b01, WAIT = 2'b10, ALIGN = 2'b11;
-    reg [1:0] state = ALIGN;
-    // Loaded with init_commands.coe
+    localparam DECISION = 2'b00, WRITE = 2'b01, NORM = 2'b10, WAIT = 2'b11;
+    localparam LS_COMMAND = 2'b00, LS_DATA = 2'b01, LS_IDLE = 2'b10;
+    reg [1:0] state = DECISION;
+    reg [1:0] ls = LS_IDLE;
+    reg [7:0] num_commands = 8'b0;
+    
+    // ROM loaded with init_commands.coe
     dist_mem_gen_0 init_ram (
-        .a(ram_ptr),
+        .a(ram_addr),
         .spo(ram_out)
     );
 
@@ -60,40 +60,81 @@ module ili9341_driver_top( sysclk, btn, tft_bl, tft_rst, tft_dc, tft_cs, tft_clk
     assign tft_rst = int_rst;
     assign tft_dc = int_dc;
     assign tft_cs = int_cs;
-    assign tft_clk = sysclk_div & align_done;
+    assign tft_clk = sysclk_div;
     assign tft_din = int_din;
     
-    //assign debug_ram_ptr = ram_ptr;
-    //assign debug_ram_out_ptr = ram_out_ptr;
+    //assign debug_ram_addr = ram_addr;
+    //assign debug_ram_out_addr = ram_out_addr;
     //assign debug_ram_out = ram_out;
 
     always @ (negedge sysclk_div)
     begin            
         case (state)
-        ALIGN:
+        DECISION:
         begin
-            int_dc <= 1'b1;
-            state <= INIT;
-        end
-        INIT:
-        begin
-            int_cs <= 1'b0;
-            align_done <= 1'b1;
+            int_cs <= 1'b1;
             
-            if (ram_out_ptr == 3'b0)
+            case (ls)
+            LS_IDLE:
             begin
-                ram_out_ptr <= 3'b111;
-                //if (ram_out == 8'b00101001)
-                state <= WAIT;
-                ram_ptr <= ram_ptr + 1;
-                //if (ram_ptr == 110)
-                if (ram_ptr == 4'b0101)
-                    state <= NORM;
+            if (ram_addr == 112)
+            begin
+                state <= NORM;
+                int_dc <= 1'b1;
             end
             else
-                ram_out_ptr <= ram_out_ptr - 1;
+            begin
+                state <= WRITE;
+                ls <= LS_COMMAND;
+                int_dc <= 1'b0;
+            end
+            end
+            LS_COMMAND:
+            begin
+                if (ram_out == 8'b10000000)
+                begin
+                    state <= WAIT;
+                    ls <= LS_IDLE;
+                    ram_addr <= ram_addr + 1;
+                end
+                else
+                begin
+                    state <= WRITE;
+                    ls <= LS_DATA;
+                    num_commands <= ram_out;
+                    ram_addr <= ram_addr + 1;
+                    int_dc <= 1'b1;
+                end
+            end
+            LS_DATA:
+            begin
+                if (num_commands > 1)
+                begin
+                    num_commands <= num_commands - 1;
+                    state <= WRITE;
+                end
+                else
+                begin
+                    state <= DECISION;
+                    ls <= LS_IDLE;
+                end
+            end
+            endcase
+        end
+        WRITE:
+        begin
+            int_cs <= 1'b0;
+            
+            if (ram_out_addr == 3'b0)
+            begin
+                ram_out_addr <= 3'b111;
+                ram_addr <= ram_addr + 1;
+                state <= DECISION;
+            end
+            else
+                ram_out_addr <= ram_out_addr - 1;
                 
-            int_din <= ram_out[ram_out_ptr];
+            int_din <= ram_out[ram_out_addr];
         end
         WAIT:
         begin
@@ -103,22 +144,15 @@ module ili9341_driver_top( sysclk, btn, tft_bl, tft_rst, tft_dc, tft_cs, tft_clk
             if (wait_counter == 900000)
             begin
                 wait_counter = 20'b0;
-                state <= INIT;
+                state <= DECISION;
             end
             else
                 wait_counter <= wait_counter + 1;
         end
         NORM:
         begin
-            int_cs <= 1'b0;
-            
-            if (ptr == 4'b1)
-                ptr <= 4'b0;
-            if (&data_out_reg == 1'b1)
-                data_out_reg <= 32'b0;
-            ptr <= ptr + 1'b1;
-            data_out_reg <= data_out_reg + 1'b1;
-            int_din <= data_out_reg[ptr];
+            int_cs <= 1'b1;
+            system_ready <= 1'b1;
         end
         endcase
     end
