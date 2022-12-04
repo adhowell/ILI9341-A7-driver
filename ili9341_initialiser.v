@@ -1,17 +1,21 @@
 `timescale 1ns / 1ps
 
-module ili9341_initialiser( clk, tft_bl, tft_rst, tft_dc, tft_cs, tft_din, ready );
+module ili9341_initialiser( clk, bl, rst, dc, cs, din, ready
+, debug_ram_out, debug_ram_out_addr );
     input clk;
-    output tft_bl;
-    output tft_rst;
-    output tft_dc;
-    output tft_cs;
-    output tft_din;
+    output bl;
+    output rst;
+    output dc;
+    output cs;
+    output din;
     output ready;
+    
+    output [9:0] debug_ram_out;
+    output [2:0] debug_ram_out_addr;
 
     reg int_rst = 1'b1;
-    reg int_dc = 1'b0;
-    reg int_din = 1'b0;
+    reg int_dc = 1'bx;
+    reg int_din = 1'bx;
     reg int_cs = 1'b1;
     reg system_ready = 1'b0;
     
@@ -33,13 +37,15 @@ module ili9341_initialiser( clk, tft_bl, tft_rst, tft_dc, tft_cs, tft_din, ready
 
     reg [19:0] wait_counter = 20'b0;
     
-    assign tft_bl = 1'b0;
-    assign tft_rst = int_rst;
-    assign tft_dc = int_dc;
-    assign tft_cs = int_cs;
-    assign tft_clk = clk;
-    assign tft_din = int_din;
+    assign bl = 1'b0;
+    assign rst = int_rst;
+    assign dc = int_dc;
+    assign cs = int_cs;
+    assign din = int_din;
     assign ready = system_ready;
+    
+    assign debug_ram_out = ram_out;
+    assign debug_ram_out_addr = ram_out_addr;
 
     always @ (negedge clk)
     begin            
