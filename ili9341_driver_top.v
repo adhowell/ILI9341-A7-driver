@@ -1,11 +1,15 @@
 `timescale 1ns / 1ps
 
-module clk_half_divider ( clk_in, clk_out );
+module clk_divider ( clk_in, clk_div2, clk_div4, clk_div16 );
     input clk_in;
-    output clk_out;
+    output clk_div2;
+    output clk_div4;
+    output clk_div16;
     
-    reg clk_out_reg = 1'b0;
-    assign clk_out = clk_out_reg;
+    reg [2:0] clk_out_reg = 3'b000;
+    assign clk_div2 = clk_out_reg[0];
+    assign clk_div4 = clk_out_reg[1];
+    assign clk_div16 = clk_out_reg[2];
     
     always @ (posedge clk_in)
         clk_out_reg <= clk_out_reg + 1;
@@ -31,9 +35,9 @@ module mode_select ( bl_0, bl_1, bl, rst_0, rst_1, rst, dc_0, dc_1, dc, cs_0, cs
     assign din = (din_0 & ~select) | (din_1 & select);
 endmodule
 
-module ili9341_driver_top( sysclk, btn, tft_bl, tft_rst, tft_dc, tft_cs, tft_clk, tft_din
-, debug_ram_out_addr, debug_ram_out
-, debug_data, debug_addr );
+module ili9341_driver_top( sysclk, btn, tft_bl, tft_rst, tft_dc, tft_cs, tft_clk, tft_din );
+//, debug_ram_out_addr, debug_ram_out
+//, debug_data, debug_addr );
     input sysclk;
     input [1:0] btn;
     output tft_bl;
@@ -44,17 +48,17 @@ module ili9341_driver_top( sysclk, btn, tft_bl, tft_rst, tft_dc, tft_cs, tft_clk
     output tft_din;
     
     //output [9:0] debug_ram_addr;
-    output [3:0] debug_ram_out_addr;
-    output [7:0] debug_ram_out;
+    //output [3:0] debug_ram_out_addr;
+    //output [7:0] debug_ram_out;
     
-    output [31:0] debug_data;
-    output [7:0] debug_addr;
+    //output [31:0] debug_data;
+    //output [7:0] debug_addr;
 
     // Half the clock rate
     wire sysclk_div;
-    clk_half_divider clk_half ( 
+    clk_divider internal_clk ( 
         .clk_in(sysclk),
-        .clk_out(sysclk_div)
+        .clk_div16(sysclk_div)
     );
     
     wire init_bl;
@@ -70,9 +74,9 @@ module ili9341_driver_top( sysclk, btn, tft_bl, tft_rst, tft_dc, tft_cs, tft_clk
         .dc(init_dc),
         .cs(init_cs),
         .din(init_din),
-        .ready(system_ready),
-        .debug_ram_out(debug_ram_out),
-        .debug_ram_out_addr(debug_ram_out_addr)
+        .ready(system_ready)
+        //.debug_ram_out(debug_ram_out),
+        //.debug_ram_out_addr(debug_ram_out_addr)
     );
     
     wire display_bl;
@@ -80,16 +84,16 @@ module ili9341_driver_top( sysclk, btn, tft_bl, tft_rst, tft_dc, tft_cs, tft_clk
     wire display_dc;
     wire display_din;
     wire display_cs;
-    ili9341_pixel_raster display_unit (
+    ili9341_colour_ramp display_unit (
         .start(system_ready),
         .clk(sysclk_div),
         .bl(display_bl),
         .rst(display_rst),
         .dc(display_dc),
         .cs(display_cs),
-        .din(display_din),
-        .debug_data(debug_data),
-        .debug_addr(debug_addr)
+        .din(display_din)
+        //.debug_data(debug_data),
+        //.debug_addr(debug_addr)
     );
     
     wire bl;
