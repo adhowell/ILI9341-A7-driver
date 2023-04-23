@@ -58,7 +58,7 @@ module ili9341_driver_top( sysclk, led, tft_bl, tft_rst, tft_dc, tft_cs, tft_clk
     wire sysclk_div;
     clk_divider internal_clk ( 
         .clk_in(sysclk),
-        .clk_div16(sysclk_div)
+        .clk_div2(sysclk_div)
     );
     
     wire init_bl;
