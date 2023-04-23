@@ -32,20 +32,19 @@ module ili9341_colour_ramp( start, clk, bl, rst, dc, cs, din );
     // State machine
     localparam WAIT = 3'b000, COMMAND_X = 3'b001, WRITE_X = 3'b010, COMMAND_Y = 3'b011, WRITE_Y = 3'b100, COMMAND_RAM = 3'b101, WRITE_RGB = 3'b110, WRITE = 3'b111;
     reg [2:0] state = WAIT;
-    reg [2:0] next_state = COMMAND_X;
+    reg [2:0] next_state = WAIT;
+    
+    // Colour-mode state machine
+    localparam RED = 2'b00, GREEN = 2'b01, BLUE = 2'b10, ALL = 2'b11; 
+    reg [1:0] colour_state = RED;
     reg [7:0] rgb_len = 8'h0F;
     reg [15:0] r_val = r_start;
     reg [15:0] g_val = g_start;
     reg [15:0] b_val = b_start;
     reg [15:0] a_val = a_start;
     reg [15:0] rgb_val = r_start;
-    reg [15:0] rgb_next_val = r_start;
     reg [15:0] rgb_incr = r_start;
     reg [15:0] rgb_limit = r_limit;
-    
-    // Colour-mode state machine
-    localparam RED = 2'b00, GREEN = 2'b01, BLUE = 2'b10, ALL = 2'b11; 
-    reg [1:0] colour_state = RED;
     
     reg [7:0] x_command = 8'h2A;
     reg [7:0] y_command = 8'h2B;
@@ -57,8 +56,8 @@ module ili9341_colour_ramp( start, clk, bl, rst, dc, cs, din );
     reg [31:0] y_val = 32'h003C0103;  // 60 -> 259
     reg [7:0] xy_len = 8'h1F;
     
-    reg [16:0] row = 16'h0000;
-    reg [16:0] col = 16'h0000;
+    reg [7:0] row = 8'h00;
+    reg [7:0] col = 8'h00;
     
     reg [31:0] data = 32'h00000000;
     reg [7:0] index = 8'h00;
@@ -141,6 +140,13 @@ module ili9341_colour_ramp( start, clk, bl, rst, dc, cs, din );
             int_dc <= 1'b1;
             
             col <= col + 1;
+            if (col == 0)
+            begin
+                if (rgb_val >= rgb_limit)
+                    rgb_val <= rgb_incr;
+                else
+                    rgb_val <= rgb_val + rgb_incr;
+            end
             if (col == 99)
             begin
                 col <= 0;
@@ -148,7 +154,7 @@ module ili9341_colour_ramp( start, clk, bl, rst, dc, cs, din );
                 RED:
                 begin
                     r_val <= rgb_val;
-                    rgb_next_val <= g_val;
+                    rgb_val <= g_val;
                     rgb_incr <= g_start;
                     rgb_limit <= g_limit;
                     colour_state <= GREEN;
@@ -156,19 +162,18 @@ module ili9341_colour_ramp( start, clk, bl, rst, dc, cs, din );
                 GREEN:
                 begin
                     g_val <= rgb_val;
-
                     row <= row + 1;
                     if (row == 99)
                     begin
                         row <= 0;
-                        rgb_next_val <= b_val;
+                        rgb_val <= b_val;
                         rgb_incr <= b_start;
                         rgb_limit <= b_limit;
                         colour_state <= BLUE;
                     end
                     else
                     begin
-                        rgb_next_val <= r_val;
+                        rgb_val <= r_val;
                         rgb_incr <= r_start;
                         rgb_limit <= r_limit;
                         colour_state <= RED;
@@ -177,7 +182,7 @@ module ili9341_colour_ramp( start, clk, bl, rst, dc, cs, din );
                 BLUE:
                 begin
                     b_val <= rgb_val;
-                    rgb_next_val <= a_val;
+                    rgb_val <= a_val;
                     rgb_incr <= a_start;
                     rgb_limit <= a_limit;
                     colour_state <= ALL;
@@ -189,38 +194,23 @@ module ili9341_colour_ramp( start, clk, bl, rst, dc, cs, din );
                     if (row == 99)
                     begin
                         row <= 0;
-                        rgb_next_val <= r_val;
+                        rgb_val <= r_val;
                         rgb_incr <= r_start;
                         rgb_limit <= r_limit;
                         colour_state <= RED;
                     end
                     else
                     begin
-                        rgb_next_val <= b_val;
+                        rgb_val <= b_val;
                         rgb_incr <= b_start;
                         rgb_limit <= b_limit;
                         colour_state <= BLUE;
                     end
                 end
                 endcase
-                data <= rgb_val;
             end
-            else if (col == 0)
-            begin
-                
-                if (rgb_next_val + rgb_incr >= rgb_limit)
-                begin
-                    rgb_val <= rgb_incr;
-                    data <= rgb_incr;
-                end
-                else
-                begin
-                    rgb_val <= rgb_next_val + rgb_incr;
-                    data <= rgb_next_val + rgb_incr;
-                end
-            end
-            else
-                data <= rgb_val;
+
+            data <= rgb_val;
             index <= rgb_len;
             
             next_state <= WRITE_RGB;
