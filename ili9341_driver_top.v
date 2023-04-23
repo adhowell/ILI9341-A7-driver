@@ -35,11 +35,11 @@ module mode_select ( bl_0, bl_1, bl, rst_0, rst_1, rst, dc_0, dc_1, dc, cs_0, cs
     assign din = (din_0 & ~select) | (din_1 & select);
 endmodule
 
-module ili9341_driver_top( sysclk, btn, tft_bl, tft_rst, tft_dc, tft_cs, tft_clk, tft_din );
+module ili9341_driver_top( sysclk, led, tft_bl, tft_rst, tft_dc, tft_cs, tft_clk, tft_din );
 //, debug_ram_out_addr, debug_ram_out
 //, debug_data, debug_addr );
     input sysclk;
-    input [1:0] btn;
+    output [1:0] led;
     output tft_bl;
     output tft_rst;
     output tft_dc;
@@ -119,6 +119,9 @@ module ili9341_driver_top( sysclk, btn, tft_bl, tft_rst, tft_dc, tft_cs, tft_clk
         .cs(cs),
         .select(system_ready)
     );
+    
+    assign led[0] = 1'b0;
+    assign led[1] = system_ready;
     
     assign tft_bl = bl;
     assign tft_rst = rst;

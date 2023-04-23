@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
-module ili9341_initialiser( clk, bl, rst, dc, cs, din, ready
-, debug_ram_out, debug_ram_out_addr );
+module ili9341_initialiser( clk, bl, rst, dc, cs, din, ready );
+//, debug_ram_out, debug_ram_out_addr );
     input clk;
     output bl;
     output rst;
@@ -10,8 +10,8 @@ module ili9341_initialiser( clk, bl, rst, dc, cs, din, ready
     output din;
     output ready;
     
-    output [9:0] debug_ram_out;
-    output [2:0] debug_ram_out_addr;
+    //output [9:0] debug_ram_out;
+    //output [2:0] debug_ram_out_addr;
 
     reg int_rst = 1'b1;
     reg int_dc = 1'bx;
@@ -44,8 +44,8 @@ module ili9341_initialiser( clk, bl, rst, dc, cs, din, ready
     assign din = int_din;
     assign ready = system_ready;
     
-    assign debug_ram_out = ram_out;
-    assign debug_ram_out_addr = ram_out_addr;
+    //assign debug_ram_out = ram_out;
+    //assign debug_ram_out_addr = ram_out_addr;
 
     always @ (negedge clk)
     begin            
